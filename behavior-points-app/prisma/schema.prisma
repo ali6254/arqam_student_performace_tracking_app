@@ -1,0 +1,133 @@
+// This schema mirrors tables that already exist in the database
+// (created by db/init/001_schema.sql in the behavior-points-db project).
+// Do NOT run `prisma migrate dev` against it — that tries to manage
+// migration history for tables it didn't create. Use:
+//   npx prisma generate   (generates the client from this file)
+//   npx prisma db pull    (optional: verify this file matches the live db)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id       Int        @id @default(autoincrement())
+  name     String     @unique
+  admins   Admin[]
+  staff    Staff[]
+  students Student[]
+  terms    Term[]
+  criteria Criteria[]
+
+  @@map("schools")
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  schoolId     Int?     @map("school_id")
+  school       School?  @relation(fields: [schoolId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admins")
+}
+
+model Staff {
+  id           Int          @id @default(autoincrement())
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  schoolId     Int          @map("school_id")
+  school       School       @relation(fields: [schoolId], references: [id])
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  pointEntries PointEntry[]
+
+  @@map("staff")
+}
+
+model Student {
+  id                Int          @id @default(autoincrement())
+  studentNumber     String       @unique @map("student_number")
+  firstName         String       @map("first_name")
+  middleName        String?      @map("middle_name")
+  lastName          String       @map("last_name")
+  birthday          DateTime?    @db.Date
+  address           String?
+  email             String       @unique
+  phoneNumber       String?      @map("phone_number")
+  parentPhoneNumber String?      @map("parent_phone_number")
+  passwordHash      String       @map("password_hash")
+  schoolId          Int          @map("school_id")
+  school            School       @relation(fields: [schoolId], references: [id])
+  isActive          Boolean      @default(true) @map("is_active")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  pointEntries      PointEntry[]
+
+  @@map("students")
+}
+
+model Term {
+  id           Int          @id @default(autoincrement())
+  schoolId     Int          @map("school_id")
+  school       School       @relation(fields: [schoolId], references: [id])
+  name         String
+  startDate    DateTime     @map("start_date") @db.Date
+  endDate      DateTime     @map("end_date") @db.Date
+  isCurrent    Boolean      @default(false) @map("is_current")
+  pointEntries PointEntry[]
+
+  @@unique([schoolId, name])
+  @@map("terms")
+}
+
+model Criteria {
+  id                Int                @id @default(autoincrement())
+  schoolId          Int                @map("school_id")
+  school            School             @relation(fields: [schoolId], references: [id])
+  name              String
+  description       String?
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  performanceLevels PerformanceLevel[]
+
+  @@unique([schoolId, name])
+  @@map("criteria")
+}
+
+model PerformanceLevel {
+  id           Int          @id @default(autoincrement())
+  criteriaId   Int          @map("criteria_id")
+  criteria     Criteria     @relation(fields: [criteriaId], references: [id])
+  name         String
+  points       Int
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  pointEntries PointEntry[]
+
+  @@unique([criteriaId, name])
+  @@map("performance_levels")
+}
+
+model PointEntry {
+  id                 Int              @id @default(autoincrement())
+  studentId          Int              @map("student_id")
+  student            Student          @relation(fields: [studentId], references: [id])
+  staffId            Int              @map("staff_id")
+  staff              Staff            @relation(fields: [staffId], references: [id])
+  performanceLevelId Int              @map("performance_level_id")
+  performanceLevel   PerformanceLevel @relation(fields: [performanceLevelId], references: [id])
+  termId             Int              @map("term_id")
+  term               Term             @relation(fields: [termId], references: [id])
+  pointsAwarded      Int              @map("points_awarded")
+  note               String?
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  @@map("point_entries")
+}
